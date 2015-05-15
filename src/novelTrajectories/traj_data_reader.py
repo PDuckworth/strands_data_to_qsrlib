@@ -133,21 +133,18 @@ class Trajectory_Data_Reader(object):
 
                 if self.qsr == "arg_distance":
                     qsrlib_request_message = QSRlib_Request_Message(which_qsr=self.which_qsr, \
-                           input_data=world, 
+                           input_data=world, include_missing_data=True,
                            qsrs_for= object_pair_relations,
-                           include_missing_data=True,
-                           qsr_relations_and_values = self.params[1]) 
+                           dynamic_args={"qsr_relations_and_values": self.params[1]})
 
                 elif object_pair_relations != []:
                     qsrlib_request_message = QSRlib_Request_Message(which_qsr=self.which_qsr, \
-                           input_data=world, 
-                           qsrs_for= object_pair_relations,
-                           include_missing_data=True)   
+                           input_data=world, include_missing_data=True,
+                           qsrs_for= object_pair_relations)
 
                 else:
                     qsrlib_request_message = QSRlib_Request_Message(which_qsr=self.which_qsr, \
-                           input_data=world, 
-                           include_missing_data=True)
+                           input_data=world, include_missing_data=True)
 
                 cln = QSRlib_ROS_Client()
                 req = cln.make_ros_request_message(qsrlib_request_message)
