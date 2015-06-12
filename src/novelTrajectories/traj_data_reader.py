@@ -128,19 +128,23 @@ class Trajectory_Data_Reader(object):
             for uuid, world in traj_world.items():
                 #print("object location = ", objects)
                 print("object pairs requested = ", object_pair_relations)
-                print("distance_values = ", self.params[1])
+                print("qsr parameters = ", self.params[1])
                 #print("world.trace keys = ", world.trace.keys())
 
                 if self.qsr == "arg_distance":
                     qsrlib_request_message = QSRlib_Request_Message(which_qsr=self.which_qsr, \
-                           input_data=world, 
-                           qsrs_for=object_pair_relations,
-                           include_missing_data=True,
-                           qsr_relations_and_values = self.params[1]) 
+                           input_data=world, include_missing_data=True,
+                           qsrs_for= object_pair_relations,
+                           dynamic_args={"qsr_relations_and_values": self.params[1]})
+
+                elif object_pair_relations != []:
+                    qsrlib_request_message = QSRlib_Request_Message(which_qsr=self.which_qsr, \
+                           input_data=world, include_missing_data=True,
+                           qsrs_for= object_pair_relations)
+
                 else:
                     qsrlib_request_message = QSRlib_Request_Message(which_qsr=self.which_qsr, \
-                           input_data=world, 
-                           include_missing_data=True)
+                           input_data=world, include_missing_data=True)
 
                 cln = QSRlib_ROS_Client()
                 req = cln.make_ros_request_message(qsrlib_request_message)
@@ -156,7 +160,7 @@ class Trajectory_Data_Reader(object):
                 #        foo += str(k) + ":" + str(v.qsr) + "; "
                 #    print(foo)
                 print("out.qsr.trace length ", len(out.qsrs.trace), "\n")
-                
+
                 self.spatial_relations[uuid] = out.qsrs
         return
 

@@ -91,16 +91,16 @@ def get_learning_config():
     data_dir, config_path = get_path()
 
     qsr = os.path.join(data_dir, 'qsr_dump/')
-    eps = os.path.join(data_dir, 'episode_dump/')
+    trajs = os.path.join(data_dir, 'trajectory_dump/')
     graphs = os.path.join(data_dir, 'AG_graphs/')
     learning_area = os.path.join(data_dir, 'learning/')
 
     check_dir(qsr)
-    check_dir(eps)
+    check_dir(trajs)
     check_dir(graphs)
     check_dir(learning_area)
 
-    directories = (data_dir, qsr, eps, graphs, learning_area)
+    directories = (data_dir, qsr, trajs, graphs, learning_area)
 
     config_parser = ConfigParser.SafeConfigParser()
     config_parser.read(config_path)
