@@ -22,7 +22,7 @@ from utilities.utilities import merge_world_qsr_traces
 from qsrlib.qsrlib import QSRlib_Request_Message
 from qsrlib_io.world_trace import Object_State, World_Trace
 from qsrlib_ros.qsrlib_ros_client import QSRlib_ROS_Client
-
+from qsrlib_viz.qsrlib_rviz import cl_qsrlib_rviz
 
 options = {"rcc3": "rcc3_rectangle_bounding_boxes_2d",
            "qtcb": "qtc_b_simplified",
@@ -47,7 +47,6 @@ def list_condition((item1, item2)):
     return item1 != item2
 
 
-
 class Trajectory_Data_Reader(object):
     '''
     Trajectory Data Reader class:
@@ -59,7 +58,7 @@ class Trajectory_Data_Reader(object):
     3. Pass objects and trajectory dictionaries along with a mapping between the two - will return only these pairs.
     '''
     def __init__(self, objects=[], trajectories={}, roi="", objs_to_traj_map = {},
-                     load_from_file="", dir=""):
+                     load_from_file="", dir="", vis=False, current_uuids=[]):
 
         if load_from_file is not None and load_from_file != "":
             self.load(filename=load_from_file, dir = dir)
@@ -77,6 +76,8 @@ class Trajectory_Data_Reader(object):
         (data_dir, self.config, self.params, self.date) = util.get_qsr_config()
         self.qsr = self.params[0]
         self.which_qsr = options[self.qsr]
+        self.vis = vis #Publish the QSR_World_Trace and QSR_World_Trace to visualise in RVIZ
+        self.current_uuids_detected = current_uuids
 
         #If no input data - return
         if len(self.dict1) == 0:
@@ -160,8 +161,19 @@ class Trajectory_Data_Reader(object):
                 #        foo += str(k) + ":" + str(v.qsr) + "; "
                 #    print(foo)
                 print("out.qsr.trace length ", len(out.qsrs.trace), "\n")
+                #print("uuid >>>", uuid)
+                #print("all uuids in scene = ", self.current_uuids_detected)
+                #print("qsr params", self.params[0])
 
                 self.spatial_relations[uuid] = out.qsrs
+                if self.vis:
+                    if self.params[0]==self.qsr: qsr_options = self.params[1].keys()
+                    #print("uuid >>>", uuid)
+                    #print("all uuids in scene = ", self.current_uuids_detected)
+                    #print("qsr params", self.params)
+
+                    cl_qsrlib_rviz(uuid, world, out.qsrs, self.current_uuids_detected, \
+                        qsr_options)
         return
 
 
