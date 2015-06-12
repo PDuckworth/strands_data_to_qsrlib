@@ -166,14 +166,23 @@ class Trajectory_Data_Reader(object):
                 #print("qsr params", self.params[0])
 
                 self.spatial_relations[uuid] = out.qsrs
+                
                 if self.vis:
-                    if self.params[0]==self.qsr: qsr_options = self.params[1].keys()
-                    #print("uuid >>>", uuid)
-                    #print("all uuids in scene = ", self.current_uuids_detected)
-                    #print("qsr params", self.params)
+                    orderedList=[]
+                    if self.params[0]==self.qsr:
+                        new_dict = dict (zip(params[1].values(),params[1].keys()))
+                        keys = new_dict.keys()
+                        keys.sort(key=int)
+
+                        for i in keys:
+                            orderedList.append(new_dict[i])
+
+                        #print("uuid >>>", uuid)
+                        #print("all uuids in scene = ", self.current_uuids_detected)
+                        #print("qsr params", self.params)
 
                     cl_qsrlib_rviz(uuid, world, out.qsrs, self.current_uuids_detected, \
-                        qsr_options)
+                        orderedList)
         return
 
 
