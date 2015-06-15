@@ -170,7 +170,7 @@ class Trajectory_Data_Reader(object):
                 if self.vis:
                     orderedList=[]
                     if self.params[0]==self.qsr:
-                        new_dict = dict (zip(params[1].values(),params[1].keys()))
+                        new_dict = dict (zip(self.params[1].values(), self.params[1].keys()))
                         keys = new_dict.keys()
                         keys.sort(key=int)
 
