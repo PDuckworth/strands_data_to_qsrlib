@@ -169,13 +169,14 @@ class Trajectory_Data_Reader(object):
                 
                 if self.vis:
                     orderedList=[]
-                    if self.params[0]==self.qsr:
-                        new_dict = dict (zip(self.params[1].values(), self.params[1].keys()))
-                        keys = new_dict.keys()
-                        keys.sort(key=int)
+                    if self.qsr == "arg_distance":
+                        if self.params[0]==self.qsr:
+                            new_dict = dict (zip(self.params[1].values(), self.params[1].keys()))
+                            keys = new_dict.keys()
+                            keys.sort(key=int)
 
-                        for i in keys:
-                            orderedList.append(new_dict[i])
+                            for i in keys:
+                                orderedList.append(new_dict[i])
 
                         #print("uuid >>>", uuid)
                         #print("all uuids in scene = ", self.current_uuids_detected)
@@ -183,6 +184,7 @@ class Trajectory_Data_Reader(object):
 
                     cl_qsrlib_rviz(uuid, world, out.qsrs, self.current_uuids_detected, \
                         orderedList)
+                          
         return
 
 
