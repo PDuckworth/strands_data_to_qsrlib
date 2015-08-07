@@ -23,12 +23,12 @@ def get_path():
 def get_map_config(config_path):
     config_parser = ConfigParser.SafeConfigParser()
     print(config_parser.read(config_path))
-    config_section = "soma" 
+    config_section = "soma"
     try:
         map = config_parser.get(config_section, "soma_map")
         config = config_parser.get(config_section, "soma_config")
     except ConfigParser.NoOptionError:
-         raise  
+         raise
     return (map, config)
 
 
@@ -38,7 +38,7 @@ def check_dir(directory):
     return
 
 
-def get_qsr_config():
+def get_qsr_config(multiple_qsrs=False):
     data_dir, config_path = get_path()
 
     config_parser = ConfigParser.SafeConfigParser()
@@ -51,34 +51,55 @@ def get_qsr_config():
     except ConfigParser.NoOptionError:
         raise
 
-    if qsr == "qtcb": 
+    if qsr == "arg_distance_qtcb_comb":
+        print("Arg Distance and QTCb Combined")
+
+        try:
+            touch = config_parser.getfloat(config_section, "touch")
+            near = config_parser.getfloat(config_section, "near")
+            medium = config_parser.getfloat(config_section, "medium")
+            far = config_parser.getfloat(config_section, "far")
+            ignore = config_parser.getfloat(config_section, "ignore")
+            qsr_values = {"touch":touch, "near":near, "medium":medium, "far":far, "ignore":ignore}
+
+            q = config_parser.getfloat(config_section, "q")
+            v = config_parser.getboolean(config_section, "v")
+            n = config_parser.getboolean(config_section, "n")
+
+            params = (["arg_distance", qsr_values], ["qtcb", q, v, n])
+
+        except ConfigParser.NoOptionError:
+            raise
+
+
+    if qsr == "qtcb":
         print("QTCb requested")
         try:
             q = config_parser.getfloat(config_section, "q")
             v = config_parser.getboolean(config_section, "v")
             n = config_parser.getboolean(config_section, "n")
             params = [qsr, q, v, n]
-
         except ConfigParser.NoOptionError:
             raise
-    if qsr == "rcc3": 
+
+    if qsr == "rcc3":
         print("RCC3 requested")
         params = [qsr]
 
-    if qsr == "arg_distance": 
+    if qsr == "arg_distance":
         print("Distance QSRs requested")
-        config_section = "qsr_relations_and_values"     
+        config_section = "qsr_relations_and_values"
         try:
             #values = config_parser._sections['qsr_relations_and_values']
             #for i, val in values.items():
             #    print(i, val)
-            
+
+            touch = config_parser.getfloat(config_section, "touch")
             near = config_parser.getfloat(config_section, "near")
             medium = config_parser.getfloat(config_section, "medium")
             far = config_parser.getfloat(config_section, "far")
-            too_far = config_parser.getfloat(config_section, "too_far")
-            infinite = config_parser.getfloat(config_section, "infinity")
-            qsr_values = {"near":near, "medium":medium, "far":far, "too_far":too_far, "infinite":infinite}
+            too_far = config_parser.getfloat(config_section, "ignore")
+            qsr_values = {"touch":touch, "near":near, "medium":medium, "far":far, "ignore":ignore}
             params = [qsr, qsr_values]
         except ConfigParser.NoOptionError:
             raise
@@ -114,7 +135,7 @@ def get_learning_config():
         input_data['num_cores'] = config_parser.get(config_section, "num_cores")
 
     except ConfigParser.NoOptionError:
-        raise    
+        raise
 
     return (directories, config_path, input_data, date)
 
@@ -129,4 +150,3 @@ if __name__ == "__main__":
 
     (map, config) = get_map_config(config_path)
     print map, config
-    

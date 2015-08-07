@@ -29,10 +29,11 @@ options = {"rcc3": "rcc3_rectangle_bounding_boxes_2d",
            "qtcc": "qtc_c_simplified",
            "qtcbc": "qtc_bc_simplified",
            "rcc3a": "rcc3_rectangle_bounding_boxes_2d",
-           "arg_distance": "arg_relations_distance"}
+           "arg_distance": "arg_relations_distance"
+           }
 
 def qsr_setup(data_dir, params, date):
-    if isinstance(params[1], float): 
+    if isinstance(params[1], float):
         temp = str(params[1]).replace(".", "_")
         params = (params[0], temp, params[2], params[3])
     #print(params)
@@ -58,7 +59,8 @@ class Trajectory_Data_Reader(object):
     3. Pass objects and trajectory dictionaries along with a mapping between the two - will return only these pairs.
     '''
     def __init__(self, objects=[], trajectories={}, roi="", objs_to_traj_map = {},
-                     load_from_file="", dir="", vis=False, current_uuids=[]):
+                     load_from_file="", dir="", vis=False, current_uuids=[],
+                     multi_params = None):
 
         if load_from_file is not None and load_from_file != "":
             self.load(filename=load_from_file, dir = dir)
@@ -69,15 +71,11 @@ class Trajectory_Data_Reader(object):
         self.dict1 = objects
         self.dict2 = trajectories
         self.obs_to_traj = objs_to_traj_map
-
-        self.spatial_relations = {}
         self.roi = roi
-
-        (data_dir, self.config, self.params, self.date) = util.get_qsr_config()
-        self.qsr = self.params[0]
-        self.which_qsr = options[self.qsr]
         self.vis = vis #Publish the QSR_World_Trace and QSR_World_Trace to visualise in RVIZ
+        self.spatial_relations = {}
         self.current_uuids_detected = current_uuids
+        self.params_str = ""
 
         #If no input data - return
         if len(self.dict1) == 0:
@@ -90,31 +88,44 @@ class Trajectory_Data_Reader(object):
             self.pairs=[]
             for (obj1, obj2) in filter(list_condition, itertools.product(self.dict1, self.dict1)):
                 self.pairs.append((obj1, obj2))
-            
-        elif self.obs_to_traj != {}: 
+
+        elif self.obs_to_traj != {}:
             flg=2
             print("  Mapping provided. Pairs being generated...")
 
-        else: 
+        else:
             flg=3
             print("  All pairs between trajectories and objects being generated...")
 
-        self.apply_qsr_lib(flg)
+
+        (data_dir, self.config, self.params, self.date) = util.get_qsr_config()
+
+        self.apply_qsr_lib(flg, multi_params)
+
         t = time.time()-t0
         print("Done. Took %f seconds." % t)
 
-    def apply_qsr_lib(self, flg=1):
+
+    def apply_qsr_lib(self, flg=1, multi_params=None):
+
+        #If just one QSR. Old way.
+        if multi_params is None:
+            num_qsrs = 1
+        else:
+            num_qsrs = len(multi_params)
 
         ##For each trajcetory:
         for uuid, poses in self.dict2.items():
 
             print(uuid, "  # Poses = ", len(poses))
 
+            self.spatial_relations[uuid] = []
+
             if self.obs_to_traj != {}:
                 objects={}
                 for i in self.obs_to_traj[uuid]:
                     objects[i] = self.dict1[i]
-            else: 
+            else:
                 objects = self.dict1  #Else, use all objects for each trajectory
 
             #Request just the trajectory and object pair
@@ -122,11 +133,21 @@ class Trajectory_Data_Reader(object):
             for other_object in objects:
                 object_pair_relations.append(("trajectory", other_object))
 
-            world_traj_qsrs = []
-            traj_world = self.get_qsrlib_world(uuid, poses, objects)
+            """loop over multiple QSRs - merge together at end"""
+            for i in xrange(0, num_qsrs):
 
-            self.spatial_relations[uuid] = {}
-            for uuid, world in traj_world.items():
+                if num_qsrs != 1: self.params = multi_params[i]
+                self.qsr = self.params[0]
+                self.which_qsr = options[self.qsr]
+
+                print("1. QSR: ", self.qsr)
+                print("2. params: ", self.params[1])
+
+
+                self.params_str += " , ".join(str(x) for x in self.params)
+
+                world = self.get_qsrlib_world(uuid, poses, objects)
+
                 #print("object location = ", objects)
                 print("object pairs requested = ", object_pair_relations)
                 print("qsr parameters = ", self.params[1])
@@ -151,13 +172,11 @@ class Trajectory_Data_Reader(object):
                 req = cln.make_ros_request_message(qsrlib_request_message)
                 res = cln.request_qsrs(req)
                 out = pickle.loads(res.data)
-                world_traj_qsrs.append(out.qsrs)
 
-                print(out.qsrs.trace[1].qsrs.keys())
-
+                print("Keys: ", out.qsrs.trace[1].qsrs.keys())
                 #for t in out.qsrs.get_sorted_timestamps():
                 #    foo = str(t) + ": "
-                #    for k, v in zip(out.qsrs.trace[t].qsrs.keys(), out.qsrs.trace[t].qsrs.values()):
+                #    for k, v in out.qsrs.trace[t].qsrs.items():
                 #        foo += str(k) + ":" + str(v.qsr) + "; "
                 #    print(foo)
                 print("out.qsr.trace length ", len(out.qsrs.trace), "\n")
@@ -165,8 +184,11 @@ class Trajectory_Data_Reader(object):
                 #print("all uuids in scene = ", self.current_uuids_detected)
                 #print("qsr params", self.params[0])
 
-                self.spatial_relations[uuid] = out.qsrs
-                
+                if num_qsrs == 1:
+                    self.spatial_relations[uuid] = out.qsrs
+                else:
+                    self.spatial_relations[uuid].append(out.qsrs)
+
                 if self.vis:
                     orderedList=[]
                     if self.params[0]=="arg_distance":
@@ -183,18 +205,40 @@ class Trajectory_Data_Reader(object):
 
                     cl_qsrlib_rviz(uuid, world, out.qsrs, self.current_uuids_detected, \
                         orderedList)
+
+
+            #If a list of QSR_WORLDS have been created, merge their qsrs together... :(
+            if isinstance(self.spatial_relations[uuid], list):
+                rels = self.spatial_relations[uuid]
+
+                print("Merge TWO QSR worlds (only dist and qtcb)")
+                times = [len(i.get_sorted_timestamps()) for i in rels]
+
+                for t in xrange((max(times)-min(times)), max(times)):
+                    for obj in rels[0].trace[t].qsrs:
+                        a = rels[0].trace[t].qsrs[obj].qsr
+                        b = rels[1].trace[t].qsrs[obj].qsr[0]
+                        rels[0].trace[t].qsrs[obj].qsr = a + '_' + b
+
+                #remove the first relation (which has no qtc value)
+                rels[0].trace.pop(0, None)
+                self.spatial_relations[uuid] = rels[0]
+                #for t in self.spatial_relations[uuid].get_sorted_timestamps():
+                    #foo = str(t) + ": "
+                    #for k, v in self.spatial_relations[uuid].trace[t].qsrs.items():
+                    #    foo += str(k) + ":" + str(v.qsr) + "; "
+                    #print(foo)
         return
 
 
     def get_qsrlib_world(self, uuid, t_poses, objects):
         o1 = []          #object 1 is always the trajectory
         o2_dic = {}      #object 2 is always the SOMA object
-        worlds = {}
         if self.qsr == "qtcb":
             (qsr, q,v,n) =  self.params
 
         #One QSR World per UUID (trajectory ID)
-        worlds[uuid] = World_Trace()
+        world = World_Trace()
 
         #Multiple objects in Scene
         for obj in objects:
@@ -209,12 +253,12 @@ class Trajectory_Data_Reader(object):
             else:
                  o1.append(Object_State(name="trajectory", timestamp = frame, x=x, y=y))
 
-            for obj in objects:    
+            for obj in objects:
                 if len(objects[obj])==2:
                     (x,y) = objects[obj]
-                    #print("  >", obj, (x,y)) 
+                    #print("  >", obj, (x,y))
                 else:
-                    (x,y,z) = objects[obj] 
+                    (x,y,z) = objects[obj]
 
                 if self.qsr == "qtcb":
                     o2_dic[obj].append(Object_State(name=obj, timestamp = frame, x=x, y=y, \
@@ -222,11 +266,11 @@ class Trajectory_Data_Reader(object):
                 else:
                     o2_dic[obj].append(Object_State(name=obj, timestamp = frame, x=x, y=y))
 
-        worlds[uuid].add_object_state_series(o1)
-       
+        world.add_object_state_series(o1)
+
         for obj, o2 in o2_dic.items():
-            worlds[uuid].add_object_state_series(o2)
-        return worlds
+            world.add_object_state_series(o2)
+        return world
 
 
 
@@ -250,7 +294,7 @@ class Trajectory_Data_Reader(object):
         if dir == "": path = filename
         else: path  = os.path.join(dir, 'qsr_dump/' + filename)
 
-        print("Loading QSRs from", path)    
+        print("Loading QSRs from", path)
         with open(path, "rb") as f:
             foo = pickle.load(f)
         self.roi = foo["ROI"]
@@ -274,7 +318,7 @@ class Episodes(object):
             self.get_episodes(noise_thres=noise)
             t = time.time()-t0
             print("Done. Took %f seconds." % t)
-    
+
     def get_episodes(self, noise_thres=2, out=False):
         from data_processing_utils import  compute_episodes, filter_intervals
 
@@ -294,7 +338,7 @@ class Episodes(object):
             # Add filtered episodes to all_episodes
             self.all_episodes[key] = fepi
             cnt+=1
-        
+
 
     def save(self, data_dir):
         print("Saving...")
@@ -333,7 +377,7 @@ if __name__ == "__main__":
 
     print(type(objects_in_roi), "of objects")
     print(type(trajectory_poses), "of trajectory poses")
- 
+
     qsr_reader = Trajectory_Data_Reader(objects=objects_in_roi, \
                                 trajectories=trajectory_poses, \
                                 roi=str(12))
@@ -347,7 +391,7 @@ if __name__ == "__main__":
 
     sys.exit(1)
 
-    
+
     test_load = '20_qsrs_qtcb__0_01__False__True__03_03_2015.p'
     qsr_reader = Trajectory_Data_Reader(load_from_file = test_load, dir = base_dir)
     print(len(qsr_reader.spatial_relations))
@@ -363,14 +407,9 @@ if __name__ == "__main__":
     #Test Load:
     #ep_test = Episodes(keeper.reader, 'all_episodes.p', data_dir)
     #print(ep_test.all_episodes.keys())
-    
+
 
     #print(ep_test.all_episodes['d6c54902-3259-5ff4-b1ca-9ed5132df53d__1__103'].keys())
 
     #for i in ep_test.all_episodes['d6c54902-3259-5ff4-b1ca-9ed5132df53d__1__103']:
     #    print(ep_test.all_episodes['d6c54902-3259-5ff4-b1ca-9ed5132df53d__1__103'][i])
-
-
-
-
-
