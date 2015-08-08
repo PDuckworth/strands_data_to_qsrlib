@@ -98,7 +98,7 @@ def get_qsr_config(multiple_qsrs=False):
             near = config_parser.getfloat(config_section, "near")
             medium = config_parser.getfloat(config_section, "medium")
             far = config_parser.getfloat(config_section, "far")
-            too_far = config_parser.getfloat(config_section, "ignore")
+            ignore = config_parser.getfloat(config_section, "ignore")
             qsr_values = {"touch":touch, "near":near, "medium":medium, "far":far, "ignore":ignore}
             params = [qsr, qsr_values]
         except ConfigParser.NoOptionError:
