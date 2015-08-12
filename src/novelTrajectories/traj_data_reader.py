@@ -59,8 +59,7 @@ class Trajectory_Data_Reader(object):
     3. Pass objects and trajectory dictionaries along with a mapping between the two - will return only these pairs.
     '''
     def __init__(self, objects=[], trajectories={}, roi="", objs_to_traj_map = {},
-                     load_from_file="", dir="", vis=False, current_uuids=[],
-                     multi_params = None):
+                     load_from_file="", dir="", vis=False, current_uuids=[]):
 
         if load_from_file is not None and load_from_file != "":
             self.load(filename=load_from_file, dir = dir)
@@ -97,29 +96,19 @@ class Trajectory_Data_Reader(object):
             flg=3
             print("  All pairs between trajectories and objects being generated...")
 
-
         (data_dir, self.config, self.params, self.date) = util.get_qsr_config()
-
-        self.apply_qsr_lib(flg, multi_params)
+        self.apply_qsr_lib(flg)
 
         t = time.time()-t0
         print("Done. Took %f seconds." % t)
 
 
-    def apply_qsr_lib(self, flg=1, multi_params=None):
-
-        #If just one QSR. Old way.
-        if multi_params is None:
-            num_qsrs = 1
-        else:
-            num_qsrs = len(multi_params)
+    def apply_qsr_lib(self, flg=1):
 
         ##For each trajcetory:
         for uuid, poses in self.dict2.items():
 
             print(uuid, "  # Poses = ", len(poses))
-
-            self.spatial_relations[uuid] = []
 
             if self.obs_to_traj != {}:
                 objects={}
@@ -133,101 +122,72 @@ class Trajectory_Data_Reader(object):
             for other_object in objects:
                 object_pair_relations.append(("trajectory", other_object))
 
-            """loop over multiple QSRs - merge together at end"""
-            for i in xrange(0, num_qsrs):
+            self.qsr = self.params[0]
+            self.which_qsr = options[self.qsr]
 
-                if num_qsrs != 1: self.params = multi_params[i]
-                self.qsr = self.params[0]
-                self.which_qsr = options[self.qsr]
-
-                print("1. QSR: ", self.qsr)
-                print("2. params: ", self.params[1])
+            print("1. QSR: ", self.qsr)
+            print("2. params: ", self.params[1])
 
 
-                self.params_str += " , ".join(str(x) for x in self.params)
+            self.params_str += " , ".join(str(x) for x in self.params)
 
-                world = self.get_qsrlib_world(uuid, poses, objects)
+            world = self.get_qsrlib_world(uuid, poses, objects)
 
-                #print("object location = ", objects)
-                print("object pairs requested = ", object_pair_relations)
-                print("qsr parameters = ", self.params[1])
-                #print("world.trace keys = ", world.trace.keys())
+            #print("object location = ", objects)
+            print("object pairs requested = ", object_pair_relations)
+            print("qsr parameters = ", self.params[1])
+            #print("world.trace keys = ", world.trace.keys())
 
-                if self.qsr == "arg_distance":
-                    qsrlib_request_message = QSRlib_Request_Message(which_qsr=self.which_qsr, \
-                           input_data=world, include_missing_data=True,
-                           qsrs_for= object_pair_relations,
-                           dynamic_args={"qsr_relations_and_values": self.params[1]})
+            if self.qsr == "arg_distance":
+                qsrlib_request_message = QSRlib_Request_Message(which_qsr=self.which_qsr, \
+                       input_data=world, include_missing_data=True,
+                       qsrs_for= object_pair_relations,
+                       dynamic_args={"qsr_relations_and_values": self.params[1]})
 
-                elif object_pair_relations != []:
-                    qsrlib_request_message = QSRlib_Request_Message(which_qsr=self.which_qsr, \
-                           input_data=world, include_missing_data=True,
-                           qsrs_for= object_pair_relations)
+            elif object_pair_relations != []:
+                qsrlib_request_message = QSRlib_Request_Message(which_qsr=self.which_qsr, \
+                       input_data=world, include_missing_data=True,
+                       qsrs_for= object_pair_relations)
 
-                else:
-                    qsrlib_request_message = QSRlib_Request_Message(which_qsr=self.which_qsr, \
-                           input_data=world, include_missing_data=True)
+            else:
+                qsrlib_request_message = QSRlib_Request_Message(which_qsr=self.which_qsr, \
+                       input_data=world, include_missing_data=True)
 
-                cln = QSRlib_ROS_Client()
-                req = cln.make_ros_request_message(qsrlib_request_message)
-                res = cln.request_qsrs(req)
-                out = pickle.loads(res.data)
+            cln = QSRlib_ROS_Client()
+            req = cln.make_ros_request_message(qsrlib_request_message)
+            res = cln.request_qsrs(req)
+            out = pickle.loads(res.data)
 
-                print("Keys: ", out.qsrs.trace[1].qsrs.keys())
-                #for t in out.qsrs.get_sorted_timestamps():
-                #    foo = str(t) + ": "
-                #    for k, v in out.qsrs.trace[t].qsrs.items():
-                #        foo += str(k) + ":" + str(v.qsr) + "; "
-                #    print(foo)
-                print("out.qsr.trace length ", len(out.qsrs.trace), "\n")
-                #print("uuid >>>", uuid)
-                #print("all uuids in scene = ", self.current_uuids_detected)
-                #print("qsr params", self.params[0])
+            print("Keys: ", out.qsrs.trace[1].qsrs.keys())
+            #for t in out.qsrs.get_sorted_timestamps():
+            #    foo = str(t) + ": "
+            #    for k, v in out.qsrs.trace[t].qsrs.items():
+            #        foo += str(k) + ":" + str(v.qsr) + "; "
+            #    print(foo)
+            print("out.qsr.trace length ", len(out.qsrs.trace), "\n")
+            #print("uuid >>>", uuid)
+            #print("all uuids in scene = ", self.current_uuids_detected)
+            #print("qsr params", self.params[0])
 
-                if num_qsrs == 1:
-                    self.spatial_relations[uuid] = out.qsrs
-                else:
-                    self.spatial_relations[uuid].append(out.qsrs)
+            self.spatial_relations[uuid] = out.qsrs
+            if self.vis:
+                print("visualising on /QSR_markers2/update!")
+                orderedList=[]
+                if self.params[0]=="arg_distance":
+                    new_dict = dict (zip(self.params[1].values(), self.params[1].keys()))
+                    keys = new_dict.keys()
+                    keys.sort(key=int)
 
-                if self.vis:
-                    orderedList=[]
-                    if self.params[0]=="arg_distance":
-                        new_dict = dict (zip(self.params[1].values(), self.params[1].keys()))
-                        keys = new_dict.keys()
-                        keys.sort(key=int)
+                    for i in keys:
+                        orderedList.append(new_dict[i])
 
-                        for i in keys:
-                            orderedList.append(new_dict[i])
+                    #print("uuid >>>", uuid)
+                    #print("all uuids in scene = ", self.current_uuids_detected)
+                    #print("qsr params", self.params)
 
-                        #print("uuid >>>", uuid)
-                        #print("all uuids in scene = ", self.current_uuids_detected)
-                        #print("qsr params", self.params)
+                cl_qsrlib_rviz(uuid, world, out.qsrs, self.current_uuids_detected, \
+                    orderedList)
 
-                    cl_qsrlib_rviz(uuid, world, out.qsrs, self.current_uuids_detected, \
-                        orderedList)
-
-
-            #If a list of QSR_WORLDS have been created, merge their qsrs together... :(
-            if isinstance(self.spatial_relations[uuid], list):
-                rels = self.spatial_relations[uuid]
-
-                print("Merge TWO QSR worlds (only dist and qtcb)")
-                times = [len(i.get_sorted_timestamps()) for i in rels]
-
-                for t in xrange((max(times)-min(times)), max(times)):
-                    for obj in rels[0].trace[t].qsrs:
-                        a = rels[0].trace[t].qsrs[obj].qsr
-                        b = rels[1].trace[t].qsrs[obj].qsr[0]
-                        rels[0].trace[t].qsrs[obj].qsr = a + '_' + b
-
-                #remove the first relation (which has no qtc value)
-                rels[0].trace.pop(0, None)
-                self.spatial_relations[uuid] = rels[0]
-                #for t in self.spatial_relations[uuid].get_sorted_timestamps():
-                    #foo = str(t) + ": "
-                    #for k, v in self.spatial_relations[uuid].trace[t].qsrs.items():
-                    #    foo += str(k) + ":" + str(v.qsr) + "; "
-                    #print(foo)
         return
 
 
