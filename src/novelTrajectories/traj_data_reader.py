@@ -128,7 +128,6 @@ class Trajectory_Data_Reader(object):
             print("1. QSR: ", self.qsr)
             print("2. params: ", self.params[1])
 
-
             self.params_str += " , ".join(str(x) for x in self.params)
 
             world = self.get_qsrlib_world(uuid, poses, objects)
@@ -164,12 +163,14 @@ class Trajectory_Data_Reader(object):
             #    for k, v in out.qsrs.trace[t].qsrs.items():
             #        foo += str(k) + ":" + str(v.qsr) + "; "
             #    print(foo)
+
+            """This is where the QSR_World_Trace is returned"""
             print("out.qsr.trace length ", len(out.qsrs.trace), "\n")
             #print("uuid >>>", uuid)
             #print("all uuids in scene = ", self.current_uuids_detected)
             #print("qsr params", self.params[0])
-
             self.spatial_relations[uuid] = out.qsrs
+
             if self.vis:
                 print("visualising on /QSR_markers2/update!")
                 orderedList=[]
@@ -192,6 +193,9 @@ class Trajectory_Data_Reader(object):
 
 
     def get_qsrlib_world(self, uuid, t_poses, objects):
+        """This is where the QSRLib style world is created.
+           It includes only object pairs required"""
+
         o1 = []          #object 1 is always the trajectory
         o2_dic = {}      #object 2 is always the SOMA object
         if self.qsr == "qtcb":
