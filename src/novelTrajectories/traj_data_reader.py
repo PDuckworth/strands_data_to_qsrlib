@@ -135,7 +135,9 @@ class Trajectory_Data_Reader(object):
 
             """loop over multiple QSRs - merge together at end"""
             for i in xrange(0, num_qsrs):
-
+                print(i)
+                print(num_qsrs)
+                print(self.params)
                 if num_qsrs != 1: self.params = multi_params[i]
                 self.qsr = self.params[0]
                 self.which_qsr = options[self.qsr]
